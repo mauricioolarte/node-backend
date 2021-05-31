@@ -8,9 +8,19 @@ const getDataFile = require('../helpers/getdatafile');
 
 
 
-const searchPost = (req = request, res = response) => {
+const searchPost = async (req = request, res = response) => {
 
-	const { words, sort, orderBy, genero, tipo, limite = 10 } = req.body;
+	const { words, sort, orderBy, genero, tipo, limite } = req.body;
+
+	if (words.length > 0 && words.length < 3) {
+		console.log(words.length)
+		res.status(404).json({
+			msg: 'La busqueda debe contener al menos 3 caracteres'
+		})
+	}
+
+
+	// transformo parametros
 	const searchWords = words ? `${words.replace(' ', '%20')}&` : '';
 	const sortParameter = sort ? `sort=${sort}&` : '';
 	const orderByParameter = orderBy ? `order_by=${orderBy}&` : '';
@@ -20,16 +30,27 @@ const searchPost = (req = request, res = response) => {
 	const tipoParameter = tipo ? `type=${tipo}&` : '';
 
 
+
+
 	const urlExternApi = 'https://api.jikan.moe/v3/search/anime?q=';
+	const urlSearchAll = 'https://api.jikan.moe/v3/search/anime?q=&order_by=members&sort=desc'
 
 
-	const completeSearchUrl = `${urlExternApi}${searchWords}&${sortParameter}&${orderByParameter}` +
+	let completeSearchUrl = `${urlExternApi}${searchWords}&${sortParameter}&${orderByParameter}` +
 		`${generoParameter}&${limiteParameter}&${tipoParameter}`;
 
-	consultasApi(completeSearchUrl);
-	const info = getDataFile()
+	if (searchWords === '') { completeSearchUrl = urlSearchAll }
 
-	console.log(info);
+	await consultasApi(completeSearchUrl);
+	const info = await getDataFile()
+
+	// console.log(info.results[0]);
+
+	if (info.message) {
+		res.status(404).json({
+			msg: "Su busqueda no arroja resultados"
+		})
+	}
 	info.results.forEach((element) => {
 		let message = '';
 		if (element.score >= 1 && element.score <= 4.9) {
@@ -44,8 +65,6 @@ const searchPost = (req = request, res = response) => {
 	})
 
 
-
-	// pendiente manejar error respuesta
 
 	res.json({
 		'msg': 'ok',
